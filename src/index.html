@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>P2P Test Game</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <header>
+        <h1>P2P Test Game</h1>
+        <p class="subtitle">A proof of concept for peer-to-peer connectivity (PeerJS)</p>
+      </header>
+
+      <!-- Lobby: shown before a session is active -->
+      <section id="lobby" class="card">
+        <h2>Lobby</h2>
+        <p>Create a server to get a sharable link, or open a shared link to join one.</p>
+        <button id="create-server" class="primary">Create Server</button>
+        <p id="lobby-status" class="status"></p>
+      </section>
+
+      <!-- Session: shown once hosting or connected -->
+      <section id="session" class="card hidden">
+        <div class="row">
+          <span id="role-badge" class="badge">—</span>
+          <span id="conn-status" class="status">Disconnected</span>
+        </div>
+
+        <div id="share-block" class="hidden">
+          <label for="share-url">Share this link:</label>
+          <div class="row">
+            <input id="share-url" type="text" readonly />
+            <button id="copy-url">Copy</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="muted">Server ID:</span>
+          <code id="server-id">—</code>
+          <span class="muted">Peers:</span>
+          <strong id="peer-count">0</strong>
+        </div>
+
+        <div class="ping-row">
+          <button id="ping-btn" disabled>Ping</button>
+          <span id="ping-result" class="status"></span>
+        </div>
+
+        <div id="messages" class="messages" aria-live="polite"></div>
+
+        <form id="chat-form" class="row">
+          <input id="chat-input" type="text" placeholder="Type a message…" autocomplete="off" disabled />
+          <button id="chat-send" class="primary" disabled>Send</button>
+        </form>
+
+        <button id="leave" class="danger">Leave</button>
+      </section>
+    </main>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
