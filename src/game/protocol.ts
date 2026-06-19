@@ -11,7 +11,7 @@ export type GameMessage =
       columnWidth: number;
       width: number;
       height: number;
-      wind: number;
+      windSeed: number;
     }
   | {
       // Active player → peer: a fired shot, as start position + velocity.

@@ -7,6 +7,7 @@ import {
   carveCrater,
 } from "./terrain.ts";
 import { simulateShot, type ShotResult, type Vec, SIM_DT } from "./physics.ts";
+import { mulberry32 } from "./rng.ts";
 import { type GameMessage } from "./protocol.ts";
 
 // Fixed virtual resolution shared by both peers, regardless of device size.
@@ -33,6 +34,9 @@ const DIRECT_BONUS = 25;
 
 const FLIGHT_SPEED = 1.7;
 const START_HP = 100;
+// Only the launch stub of the trajectory is previewed, so players still have
+// to judge gravity and wind themselves.
+const PREVIEW_POINTS = 26;
 
 type Phase = "waiting" | "aim" | "flying" | "over";
 
@@ -87,6 +91,7 @@ export function startGame(opts: StartGameOptions): GameController {
 
   let terrain: Terrain | null = null;
   let wind = 0;
+  let windRand: () => number = () => 0.5;
   let tanks: Tank[] = [];
   let currentTurn: 0 | 1 = 0;
   let phase: Phase = opts.isHost ? "aim" : "waiting";
@@ -117,9 +122,16 @@ export function startGame(opts: StartGameOptions): GameController {
     for (const t of tanks) t.surfaceY = heightAt(terrain, t.x);
   }
 
-  function setupMatch(t: Terrain, w: number) {
+  // Wind changes every turn. Both peers derive it from the same seeded PRNG,
+  // advancing it in lockstep (once per resolved shot), so they always agree.
+  function rollWind(): number {
+    return (windRand() * 2 - 1) * WIND_MAX;
+  }
+
+  function setupMatch(t: Terrain, windSeed: number) {
     terrain = t;
-    wind = w;
+    windRand = mulberry32(windSeed);
+    wind = rollWind();
     tanks = [
       { index: 0, x: W * 0.1, surfaceY: heightAt(t, W * 0.1), hp: START_HP, barrel: norm({ x: 1, y: -1 }) },
       { index: 1, x: W * 0.9, surfaceY: heightAt(t, W * 0.9), hp: START_HP, barrel: norm({ x: -1, y: -1 }) },
@@ -134,10 +146,10 @@ export function startGame(opts: StartGameOptions): GameController {
 
   function newMatchAsHost() {
     const seed = (Math.random() * 0xffffffff) >>> 0;
+    const windSeed = (Math.random() * 0xffffffff) >>> 0;
     const t = generateTerrain(seed, W, H, COLUMN_W);
-    const w = (Math.random() * 2 - 1) * WIND_MAX;
-    setupMatch(t, w);
-    opts.send({ kind: "init", heights: t.heights, columnWidth: COLUMN_W, width: W, height: H, wind: w });
+    setupMatch(t, windSeed);
+    opts.send({ kind: "init", heights: t.heights, columnWidth: COLUMN_W, width: W, height: H, windSeed });
   }
 
   function fireShot(start: Vec, velocity: Vec, fromNetwork: boolean) {
@@ -181,6 +193,7 @@ export function startGame(opts: StartGameOptions): GameController {
       phase = "over";
     } else {
       currentTurn = currentTurn === 0 ? 1 : 0;
+      wind = rollWind();
       phase = "aim";
     }
     emitHud();
@@ -312,9 +325,11 @@ export function startGame(opts: StartGameOptions): GameController {
       tanks: tanks.map((t) => ({ ...tankCenter(t), index: t.index })),
       tankRadius: TANK_R,
     });
-    for (let i = 0; i < preview.points.length; i += 7) {
+    const limit = Math.min(preview.points.length, PREVIEW_POINTS);
+    for (let i = 0; i < limit; i += 2) {
       const p = preview.points[i];
-      k.drawCircle({ pos: k.vec2(p.x, p.y), radius: 2.5, color: k.rgb(255, 255, 255), opacity: 0.5 });
+      const fade = 0.55 * (1 - i / PREVIEW_POINTS);
+      k.drawCircle({ pos: k.vec2(p.x, p.y), radius: 2.5, color: k.rgb(255, 255, 255), opacity: fade });
     }
   }
 
@@ -379,7 +394,7 @@ export function startGame(opts: StartGameOptions): GameController {
     handleMessage(msg: GameMessage) {
       switch (msg.kind) {
         case "init":
-          setupMatch(terrainFromHeights(msg.heights, msg.width, msg.height, msg.columnWidth), msg.wind);
+          setupMatch(terrainFromHeights(msg.heights, msg.width, msg.height, msg.columnWidth), msg.windSeed);
           break;
         case "fire":
           if (phase === "aim") {

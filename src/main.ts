@@ -38,6 +38,7 @@ const hpYouEl = $("hp-you");
 const hpFoeEl = $("hp-foe");
 const windIndicator = $("wind-indicator");
 const rematchBtn = $<HTMLButtonElement>("rematch");
+const gameLeaveBtn = $<HTMLButtonElement>("game-leave");
 
 let session: Session | null = null;
 let gameController: GameController | null = null;
@@ -189,6 +190,7 @@ function startGameSession(role: "host" | "client") {
   // Focus the UI on the game: hide the chat/ping/share clutter.
   for (const el of [messagesEl, chatForm, pingRow, shareBlock]) el.classList.add("hidden");
   gameSection.classList.remove("hidden");
+  document.body.classList.add("game-active");
 
   const myIndex: 0 | 1 = role === "host" ? 0 : 1;
   gameController = startGame({
@@ -211,6 +213,7 @@ function teardownGame() {
   gameStarted = false;
   gameBuffer.length = 0;
   gameSection.classList.add("hidden");
+  document.body.classList.remove("game-active");
 }
 
 function renderHud(hud: HudState) {
@@ -278,6 +281,12 @@ copyBtn.addEventListener("click", async () => {
 });
 
 leaveBtn.addEventListener("click", () => {
+  clearSession();
+  cleanUrl();
+  teardownToLobby();
+});
+
+gameLeaveBtn.addEventListener("click", () => {
   clearSession();
   cleanUrl();
   teardownToLobby();
