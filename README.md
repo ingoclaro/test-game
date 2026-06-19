@@ -44,22 +44,22 @@ Connected clients automatically rejoin a host that comes back:
 ```bash
 bun install
 
-# 1) (optional) run a local signaling broker — useful if the public cloud is firewalled
-bun run broker         # PeerServer on http://localhost:9000/myapp
-
-# 2) run the dev server
-bun run dev            # http://localhost:3000
-
-# When using the local broker, open the app with the broker params:
+# Starts BOTH the dev server (:3000) and a local signaling broker (:9000).
+# A local broker is handy because the public cloud broker is firewalled on
+# some networks. The command prints a ready-to-use URL with the broker params:
 #   http://localhost:3000/?bhost=localhost&bport=9000&bpath=/myapp&bsecure=0
+bun run dev
 ```
 
 Other scripts:
 
 ```bash
+bun run broker         # run just the local broker (PeerServer on :9000)
 bun run build          # production build into ./dist
 bun run typecheck      # tsc --noEmit
 ```
+
+> Opening plain `http://localhost:3000` uses the public cloud broker (same as production). Use the printed `?bhost=…` URL to use the local broker instead.
 
 ## Deploy to GitHub Pages
 

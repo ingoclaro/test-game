@@ -8,6 +8,10 @@ const serve = process.argv.includes("--serve");
 export {};
 
 if (serve) {
+  const { startBroker } = await import("./scripts/broker.ts");
+  const broker = startBroker();
+  const brokerQs = `bhost=localhost&bport=${broker.port}&bpath=${broker.path}&bsecure=0`;
+
   const index = (await import("./src/index.html")).default;
   const server = Bun.serve({
     port: 3000,
@@ -18,6 +22,7 @@ if (serve) {
     },
   });
   console.log(`Dev server running at ${server.url}`);
+  console.log(`Open with the local broker: ${server.url}?${brokerQs}`);
 } else {
   const result = await Bun.build({
     entrypoints: ["src/index.html"],
