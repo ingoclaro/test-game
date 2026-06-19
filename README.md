@@ -8,7 +8,7 @@ On top of the connection it ships a small **2-player artillery duel**: each play
 
 - Two players, one tank each, on opposite sides of randomly generated terrain.
 - **Drag from your tank to aim, release to fire** — works with mouse and with touch on phones. A dotted preview shows the trajectory.
-- Shells follow gravity + wind; terrain is **destructible** (each hit carves a crater); splash/direct hits damage tanks. First to destroy the other wins, then **Rematch**.
+- Shells follow gravity + wind; terrain is **destructible** — each hit clears a circular pocket of a 2D solid mask, so shots make real holes and overhangs (terrain above an impact stays unless it's itself shot). Splash/direct hits damage tanks. First to destroy the other wins, then **Rematch**.
 - Turn-based **lockstep over P2P**: the host generates the terrain and sends the heightmap; the shooter sends only the start position + velocity, and both peers run an identical integer/float-only simulation, so terrain, craters, and damage stay perfectly in sync. (Verified: both peers produce byte-identical terrain before and after destruction.)
 
 ## How it works
@@ -95,7 +95,7 @@ src/
   styles.css
   game/
     game.ts       # KAPLAY game: render, input (mouse+touch), turns, networking
-    terrain.ts    # destructible heightmap: generate, query, carve craters
+    terrain.ts    # destructible 2D grid mask: build from heightmap, query, carve holes
     physics.ts    # deterministic projectile simulation
     rng.ts        # mulberry32 seeded PRNG
     protocol.ts   # game message types (init / fire / rematch)

@@ -1,9 +1,9 @@
 import kaplay from "kaplay";
 import {
   type Terrain,
-  generateTerrain,
-  terrainFromHeights,
-  heightAt,
+  generateHeights,
+  buildTerrain,
+  surfaceY,
   carveCrater,
 } from "./terrain.ts";
 import { simulateShot, type ShotResult, type Vec, SIM_DT } from "./physics.ts";
@@ -13,7 +13,7 @@ import { type GameMessage } from "./protocol.ts";
 // Fixed virtual resolution shared by both peers, regardless of device size.
 const W = 1280;
 const H = 720;
-const COLUMN_W = 4;
+const CELL = 4;
 
 const TANK_W = 38;
 const TANK_H = 16;
@@ -119,7 +119,7 @@ export function startGame(opts: StartGameOptions): GameController {
 
   function reseatTanks() {
     if (!terrain) return;
-    for (const t of tanks) t.surfaceY = heightAt(terrain, t.x);
+    for (const t of tanks) t.surfaceY = surfaceY(terrain, t.x);
   }
 
   // Wind changes every turn. Both peers derive it from the same seeded PRNG,
@@ -133,8 +133,8 @@ export function startGame(opts: StartGameOptions): GameController {
     windRand = mulberry32(windSeed);
     wind = rollWind();
     tanks = [
-      { index: 0, x: W * 0.1, surfaceY: heightAt(t, W * 0.1), hp: START_HP, barrel: norm({ x: 1, y: -1 }) },
-      { index: 1, x: W * 0.9, surfaceY: heightAt(t, W * 0.9), hp: START_HP, barrel: norm({ x: -1, y: -1 }) },
+      { index: 0, x: W * 0.1, surfaceY: surfaceY(t, W * 0.1), hp: START_HP, barrel: norm({ x: 1, y: -1 }) },
+      { index: 1, x: W * 0.9, surfaceY: surfaceY(t, W * 0.9), hp: START_HP, barrel: norm({ x: -1, y: -1 }) },
     ];
     currentTurn = 0;
     winner = null;
@@ -147,9 +147,10 @@ export function startGame(opts: StartGameOptions): GameController {
   function newMatchAsHost() {
     const seed = (Math.random() * 0xffffffff) >>> 0;
     const windSeed = (Math.random() * 0xffffffff) >>> 0;
-    const t = generateTerrain(seed, W, H, COLUMN_W);
+    const heights = generateHeights(seed, W, H, CELL);
+    const t = buildTerrain(heights, W, H, CELL);
     setupMatch(t, windSeed);
-    opts.send({ kind: "init", heights: t.heights, columnWidth: COLUMN_W, width: W, height: H, windSeed });
+    opts.send({ kind: "init", heights, cell: CELL, width: W, height: H, windSeed });
   }
 
   function fireShot(start: Vec, velocity: Vec, fromNetwork: boolean) {
@@ -273,11 +274,9 @@ export function startGame(opts: StartGameOptions): GameController {
 
   function drawTerrain() {
     const t = terrain!;
-    for (let i = 0; i < t.heights.length; i++) {
-      const x = i * COLUMN_W;
-      const y = t.heights[i];
-      k.drawRect({ pos: k.vec2(x, y), width: COLUMN_W + 1, height: H - y, color: k.rgb(76, 110, 72) });
-      k.drawRect({ pos: k.vec2(x, y), width: COLUMN_W + 1, height: 6, color: k.rgb(120, 170, 96) });
+    const dirt = k.rgb(76, 110, 72);
+    for (const r of t.rects) {
+      k.drawRect({ pos: k.vec2(r.x, r.y), width: r.w, height: r.h, color: dirt });
     }
   }
 
@@ -394,7 +393,7 @@ export function startGame(opts: StartGameOptions): GameController {
     handleMessage(msg: GameMessage) {
       switch (msg.kind) {
         case "init":
-          setupMatch(terrainFromHeights(msg.heights, msg.width, msg.height, msg.columnWidth), msg.windSeed);
+          setupMatch(buildTerrain(msg.heights, msg.width, msg.height, msg.cell), msg.windSeed);
           break;
         case "fire":
           if (phase === "aim") {

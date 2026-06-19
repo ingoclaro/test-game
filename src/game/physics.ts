@@ -1,4 +1,4 @@
-import { type Terrain, heightAt } from "./terrain.ts";
+import { type Terrain, solidAt } from "./terrain.ts";
 
 export interface Vec {
   x: number;
@@ -51,7 +51,7 @@ export function simulateShot(
     }
 
     // Terrain hit.
-    if (y >= heightAt(terrain, x)) {
+    if (solidAt(terrain, x, y)) {
       return { points, impact: { x, y }, directHit: null };
     }
 

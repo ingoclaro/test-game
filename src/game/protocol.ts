@@ -8,7 +8,7 @@ export type GameMessage =
       // Host → client: the shared terrain and match settings.
       kind: "init";
       heights: number[];
-      columnWidth: number;
+      cell: number;
       width: number;
       height: number;
       windSeed: number;
