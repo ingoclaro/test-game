@@ -43,7 +43,7 @@
           <strong id="peer-count">0</strong>
         </div>
 
-        <div class="ping-row">
+        <div class="ping-row" id="ping-row">
           <button id="ping-btn" disabled>Ping</button>
           <span id="ping-result" class="status"></span>
         </div>
@@ -56,6 +56,19 @@
         </form>
 
         <button id="leave" class="danger">Leave</button>
+      </section>
+
+      <!-- Game: artillery duel, shown once two players are connected -->
+      <section id="game" class="card hidden">
+        <div class="row game-bar">
+          <span id="turn-indicator" class="badge">—</span>
+          <span class="muted">You: <strong id="hp-you">100</strong></span>
+          <span class="muted">Foe: <strong id="hp-foe">100</strong></span>
+          <span class="muted" id="wind-indicator">Wind →&nbsp;0</span>
+        </div>
+        <canvas id="game-canvas"></canvas>
+        <p class="hint">Drag from your tank to aim, release to fire. Works with mouse or touch.</p>
+        <button id="rematch" class="primary hidden">Rematch</button>
       </section>
     </main>
 

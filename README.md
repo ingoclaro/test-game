@@ -1,15 +1,21 @@
 # P2P Test Game
 
-A proof of concept for **peer-to-peer connectivity** in the browser, built to be hosted on **GitHub Pages**. It uses [PeerJS](https://peerjs.com/) (WebRTC) for the P2P data channel, [Bun](https://bun.sh/) as the build tool, and TypeScript throughout.
+A proof of concept for **peer-to-peer connectivity** in the browser, built to be hosted on **GitHub Pages**. It uses [PeerJS](https://peerjs.com/) (WebRTC) for the P2P data channel, [Bun](https://bun.sh/) as the build tool, [KAPLAY](https://kaplayjs.com/) for the 2D game, and TypeScript throughout.
 
-The "game" is intentionally minimal — a shared chat plus a latency **ping** — so the focus stays on proving the connection works.
+On top of the connection it ships a small **2-player artillery duel**: each player has a tank on opposite sides of randomly generated, destructible terrain, and they take turns lobbing physics-driven shells at each other.
+
+## The game
+
+- Two players, one tank each, on opposite sides of randomly generated terrain.
+- **Drag from your tank to aim, release to fire** — works with mouse and with touch on phones. A dotted preview shows the trajectory.
+- Shells follow gravity + wind; terrain is **destructible** (each hit carves a crater); splash/direct hits damage tanks. First to destroy the other wins, then **Rematch**.
+- Turn-based **lockstep over P2P**: the host generates the terrain and sends the heightmap; the shooter sends only the start position + velocity, and both peers run an identical integer/float-only simulation, so terrain, craters, and damage stay perfectly in sync. (Verified: both peers produce byte-identical terrain before and after destruction.)
 
 ## How it works
 
 - **Lobby** → click **Create Server**. Your browser becomes a PeerJS *host* and gets a sharable URL that embeds the server id (`?host=<id>`).
-- Open that URL on another device/browser and it **auto-connects** to the host as a *client* — no extra clicks.
-- The host is the hub of a star topology and relays chat to every connected peer, so 3+ participants all see each other's messages.
-- **Ping** measures the WebRTC data-channel round-trip time.
+- Open that URL on another device/browser and it **auto-connects** to the host as a *client* — no extra clicks. The artillery game starts automatically once two players are connected (host = left tank, client = right tank).
+- Before the game starts, the data channel also carries a small chat + latency **ping** used to validate connectivity.
 
 ### Signaling broker
 
@@ -82,11 +88,17 @@ The site will be available at `https://<user>.github.io/test-game/`.
 ```
 src/
   index.html      # entry (Bun bundles HTML + TS + CSS)
-  main.ts         # UI glue + bootstrap/reconnect logic
-  session.ts      # PeerJS host/client session manager
+  main.ts         # UI glue + bootstrap/reconnect logic + game wiring
+  session.ts      # PeerJS host/client session manager (chat, ping, game channel)
   config.ts       # broker option resolution from URL params
   storage.ts      # localStorage helpers
   styles.css
+  game/
+    game.ts       # KAPLAY game: render, input (mouse+touch), turns, networking
+    terrain.ts    # destructible heightmap: generate, query, carve craters
+    physics.ts    # deterministic projectile simulation
+    rng.ts        # mulberry32 seeded PRNG
+    protocol.ts   # game message types (init / fire / rematch)
 scripts/broker.ts # local PeerServer for dev/LAN testing
 build.ts          # Bun build / dev server
 .github/workflows/deploy.yml

@@ -5,7 +5,8 @@ export type Message =
   | { type: "hello"; name: string }
   | { type: "chat"; name: string; text: string }
   | { type: "ping"; t: number }
-  | { type: "pong"; t: number };
+  | { type: "pong"; t: number }
+  | { type: "game"; payload: unknown };
 
 export type Role = "host" | "client";
 
@@ -15,6 +16,8 @@ export interface SessionEvents {
   onMessage: (msg: Message, fromName: string) => void;
   /** Free-form log line for the message panel (joins, leaves, reconnects). */
   onSystem: (text: string) => void;
+  /** Payload from a peer's `game` message (artillery game protocol). */
+  onGame: (payload: unknown) => void;
   /** Fired when the underlying peer is open and we know our own id. */
   onReady: (selfId: string) => void;
   /** Fired when the session cannot be established (e.g. host unreachable). */
@@ -104,7 +107,12 @@ export class Session {
       });
 
       if (role === "host") {
-        this.peer.on("connection", (conn) => this.registerConnection(conn));
+        // Wait for the incoming connection to open before counting it, so any
+        // immediate sends (e.g. the game's init message) aren't dropped.
+        this.peer.on("connection", (conn) => {
+          if (conn.open) this.registerConnection(conn);
+          else conn.on("open", () => this.registerConnection(conn));
+        });
       }
     });
   }
@@ -251,6 +259,9 @@ export class Session {
         this.lastPongAt = Date.now();
         this.events.onMessage(msg, from.peer);
         break;
+      case "game":
+        this.events.onGame(msg.payload);
+        break;
     }
   }
 
@@ -269,6 +280,11 @@ export class Session {
     const msg: Message = { type: "chat", name: this.name, text };
     for (const conn of this.connections.values()) this.send(conn, msg);
     this.events.onMessage(msg, this.name);
+  }
+
+  /** Sends a game-protocol payload to all peers. */
+  sendGame(payload: unknown) {
+    for (const conn of this.connections.values()) this.send(conn, { type: "game", payload });
   }
 
   /** Sends a ping to the first peer and resolves with the round-trip time (ms). */

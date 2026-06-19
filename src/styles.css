@@ -173,3 +173,32 @@ code {
   color: var(--muted);
   font-style: italic;
 }
+
+/* --- Game --- */
+.game-bar {
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #161a2e;
+  /* Prevent the page from scrolling/zooming while dragging to aim on touch. */
+  touch-action: none;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+  margin: 10px 0 0;
+}
+
+#rematch {
+  display: block;
+  margin: 12px auto 0;
+}

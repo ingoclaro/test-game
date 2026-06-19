@@ -1,6 +1,8 @@
 import { Session, type Message } from "./session.ts";
 import { saveSession, loadSession, clearSession } from "./storage.ts";
 import { resolveBrokerOptions, brokerParamString } from "./config.ts";
+import { startGame, type GameController, type HudState } from "./game/game.ts";
+import { type GameMessage } from "./game/protocol.ts";
 
 // --- DOM helpers ----------------------------------------------------------
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -22,13 +24,25 @@ const serverIdEl = $("server-id");
 const peerCountEl = $("peer-count");
 const pingBtn = $<HTMLButtonElement>("ping-btn");
 const pingResult = $("ping-result");
+const pingRow = $("ping-row");
 const messagesEl = $("messages");
 const chatForm = $<HTMLFormElement>("chat-form");
 const chatInput = $<HTMLInputElement>("chat-input");
 const chatSend = $<HTMLButtonElement>("chat-send");
 const leaveBtn = $<HTMLButtonElement>("leave");
 
+const gameSection = $("game");
+const gameCanvas = $<HTMLCanvasElement>("game-canvas");
+const turnIndicator = $("turn-indicator");
+const hpYouEl = $("hp-you");
+const hpFoeEl = $("hp-foe");
+const windIndicator = $("wind-indicator");
+const rematchBtn = $<HTMLButtonElement>("rematch");
+
 let session: Session | null = null;
+let gameController: GameController | null = null;
+let gameStarted = false;
+const gameBuffer: unknown[] = [];
 
 // --- UI rendering ---------------------------------------------------------
 function logSystem(text: string) {
@@ -103,12 +117,17 @@ function wireSession(role: "host" | "client", opts: { hostId?: string; reclaimId
       onPeerCountChange: (count) => {
         peerCountEl.textContent = String(count);
         enableChat(count > 0);
+        if (count > 0 && !gameStarted) startGameSession(role);
       },
       onMessage: (msg: Message, fromName) => {
         if (msg.type === "chat") logChat(fromName, msg.text);
         else if (msg.type === "hello") logSystem(`${fromName} joined`);
       },
       onSystem: (text) => logSystem(text),
+      onGame: (payload) => {
+        if (gameController) gameController.handleMessage(payload as GameMessage);
+        else gameBuffer.push(payload);
+      },
       onFailed: (reason) => {
         connStatus.textContent = `Failed: ${reason}`;
       },
@@ -154,12 +173,68 @@ function wireSession(role: "host" | "client", opts: { hostId?: string; reclaimId
 }
 
 function teardownToLobby() {
+  teardownGame();
   session?.destroy();
   session = null;
   enableChat(false);
   peerCountEl.textContent = "0";
   showLobby();
 }
+
+// --- Game session ---------------------------------------------------------
+function startGameSession(role: "host" | "client") {
+  if (gameStarted || !session) return;
+  gameStarted = true;
+
+  // Focus the UI on the game: hide the chat/ping/share clutter.
+  for (const el of [messagesEl, chatForm, pingRow, shareBlock]) el.classList.add("hidden");
+  gameSection.classList.remove("hidden");
+
+  const myIndex: 0 | 1 = role === "host" ? 0 : 1;
+  gameController = startGame({
+    canvas: gameCanvas,
+    myIndex,
+    isHost: role === "host",
+    send: (msg) => session?.sendGame(msg),
+    onHud: renderHud,
+  });
+
+  // Replay any game messages that arrived before the controller existed.
+  while (gameBuffer.length > 0) {
+    gameController.handleMessage(gameBuffer.shift() as GameMessage);
+  }
+}
+
+function teardownGame() {
+  gameController?.destroy();
+  gameController = null;
+  gameStarted = false;
+  gameBuffer.length = 0;
+  gameSection.classList.add("hidden");
+}
+
+function renderHud(hud: HudState) {
+  hpYouEl.textContent = String(hud.hp[hud.myIndex]);
+  hpFoeEl.textContent = String(hud.hp[hud.myIndex === 0 ? 1 : 0]);
+  const dir = hud.wind >= 0 ? "→" : "←";
+  windIndicator.innerHTML = `Wind ${dir}&nbsp;${Math.round(Math.abs(hud.wind))}`;
+
+  if (hud.phase === "waiting") {
+    turnIndicator.textContent = "Waiting…";
+  } else if (hud.phase === "over") {
+    turnIndicator.textContent =
+      hud.winner === -1 ? "Draw" : hud.winner === hud.myIndex ? "You win!" : "You lose";
+  } else if (hud.phase === "flying") {
+    turnIndicator.textContent = "Incoming!";
+  } else {
+    turnIndicator.textContent = hud.myTurn ? "Your turn" : "Opponent's turn";
+  }
+  turnIndicator.classList.toggle("client", hud.myTurn);
+
+  rematchBtn.classList.toggle("hidden", hud.phase !== "over");
+}
+
+rematchBtn.addEventListener("click", () => gameController?.requestRematch());
 
 function cleanUrl() {
   const url = new URL(window.location.href);
