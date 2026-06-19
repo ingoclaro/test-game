@@ -73,7 +73,7 @@ Deployment is automated via GitHub Actions (`.github/workflows/deploy.yml`) usin
 
 On every push to `main` it builds with Bun and publishes `./dist`. The build uses relative asset paths (`publicPath: "./"`) so it works from the `/test-game/` project subpath.
 
-**One-time setup:** in the repository, go to **Settings → Pages → Build and deployment → Source** and select **GitHub Actions**.
+The workflow sets `enablement: true` on `configure-pages`, so it enables the Pages site itself on the first run — no manual setup needed. If your org restricts that, enable it manually via **Settings → Pages → Build and deployment → Source → GitHub Actions**.
 
 The site will be available at `https://<user>.github.io/test-game/`.
 
