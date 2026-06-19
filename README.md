@@ -32,6 +32,13 @@ The server id is stored in `localStorage` so a session survives a reload:
 - **Client reload** → re-checks connectivity. If the host is gone (`peer-unavailable`/timeout) the stale entry is deleted and you're returned to the lobby.
 - **Host reload (creator browser)** → reclaims the *same* server id, so existing share links keep working. If the id can't be reclaimed, it falls back to a fresh server.
 
+### Auto-rejoin
+
+Connected clients automatically rejoin a host that comes back:
+
+- When the host browser **reloads**, it reclaims its id and clients re-establish the connection within a couple of seconds (no user action needed).
+- A client **heartbeats** the host, so even a host that vanished without a clean close is detected within a few seconds. The client then retries the same host id for up to ~45s; if the host never returns, the stale entry is removed and the client falls back to the lobby.
+
 ## Develop locally
 
 ```bash
@@ -84,7 +91,3 @@ scripts/broker.ts # local PeerServer for dev/LAN testing
 build.ts          # Bun build / dev server
 .github/workflows/deploy.yml
 ```
-
-## Known follow-ups
-
-- **Reconnecting clients to a reloaded host:** when the creator browser reclaims its id, currently-connected clients don't yet auto-rejoin; they'd need to reload. The host-side reclaim itself works.

@@ -108,8 +108,16 @@ function wireSession(role: "host" | "client", opts: { hostId?: string; reclaimId
         if (msg.type === "chat") logChat(fromName, msg.text);
         else if (msg.type === "hello") logSystem(`${fromName} joined`);
       },
+      onSystem: (text) => logSystem(text),
       onFailed: (reason) => {
         connStatus.textContent = `Failed: ${reason}`;
+      },
+      onReconnectFailed: () => {
+        // Host never came back within the retry window — treat as a dead server.
+        logSystem("Host did not come back. Removing stale entry.");
+        clearSession();
+        cleanUrl();
+        teardownToLobby();
       },
     },
   });
@@ -231,5 +239,9 @@ function bootstrap() {
   // 3. Nothing to restore — show the lobby.
   showLobby();
 }
+
+// Close connections promptly when the page goes away (e.g. a host reloading),
+// so connected clients detect the drop fast and can auto-rejoin.
+window.addEventListener("pagehide", () => session?.destroy());
 
 bootstrap();
